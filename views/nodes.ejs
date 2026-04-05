@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <title>Sentinel Pulse | Active Nodes</title>
+    <%- include('partials/head') %>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen mesh-bg pb-32">
+    <header class="sticky top-0 z-50 nav-blur border-b border-white/5 flex justify-between items-center w-full px-8 py-5">
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-primary text-3xl font-light">hub</span>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary font-headline tracking-tight">Sentinel Pulse</h1>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-8 pt-10">
+        <div class="space-y-1 mb-10">
+            <h2 class="text-4xl font-bold tracking-tight text-on-surface font-headline">Active Nodes</h2>
+            <p class="text-on-surface-variant text-xs uppercase tracking-[0.2em] font-semibold opacity-70">Real-time infrastructure health</p>
+        </div>
+
+        <div class="space-y-6" id="serversList">
+            <!-- Servers will be loaded here -->
+        </div>
+
+        <div id="emptyState" class="text-center py-20 hidden">
+            <span class="material-symbols-outlined text-6xl text-on-surface-variant/30 block mb-4">server_not_available</span>
+            <p class="text-on-surface-variant text-lg font-medium">No servers configured yet</p>
+            <p class="text-on-surface-variant text-sm opacity-60 mt-2">Add your first server to begin monitoring</p>
+        </div>
+
+        <a href="/provision" class="w-full py-5 border border-white/10 bg-white/[0.02] rounded-2xl flex items-center justify-center gap-3 text-on-surface-variant hover:text-primary transition-all mt-8">
+            <span class="material-symbols-outlined text-2xl">add_circle</span>
+            <span class="font-bold tracking-tight font-headline">Register New Node</span>
+        </a>
+    </main>
+
+    <!-- Modal for editing server -->
+    <div id="editModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm pointer-events-none opacity-0 transition-opacity z-50" style="pointer-events: none;">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="glass-card rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold font-headline">Edit Server</h3>
+                    <button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center" onclick="closeEditModal()">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form id="editForm" onsubmit="handleEditSubmit(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Server Name</label>
+                            <input type="text" id="editName" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary/50" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Server URL</label>
+                            <input type="url" id="editUrl" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary/50" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Interval (seconds)</label>
+                            <input type="number" id="editInterval" min="5" max="3600" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary/50" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Retry Attempts</label>
+                            <input type="number" id="editRetry" min="0" max="5" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:border-primary/50" required>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-8">
+                        <button type="button" class="flex-1 px-4 py-2.5 rounded-lg border border-white/10 text-on-surface hover:bg-white/5 transition-all" onclick="closeEditModal()">Cancel</button>
+                        <button type="submit" class="flex-1 px-4 py-2.5 rounded-lg bg-primary text-slate-900 font-bold transition-all">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load servers on page load
+        loadServers();
+
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/servers');
+                const data = await response.json();
+                const servers = data.data || [];
+
+                const serversList = document.getElementById('serversList');
+                const emptyState = document.getElementById('emptyState');
+
+                if (servers.length === 0) {
+                    serversList.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                } else {
+                    serversList.classList.remove('hidden');
+                    emptyState.classList.add('hidden');
+                    serversList.innerHTML = servers.map(server => createServerCard(server)).join('');
+                }
+            } catch (error) {
+                console.error('Error loading servers:', error);
+            }
+        }
+
+        function createServerCard(server) {
+            const statusColor = server.status === 'UP' ? '#4edea3' : server.status === 'DOWN' ? '#fb7185' : '#94a3b8';
+            const statusLabel = server.status;
+            const statusBgColor = server.status === 'UP' ? 'primary' : server.status === 'DOWN' ? 'error' : 'slate-500';
+            const statusBg = server.status === 'UP' ? 'bg-primary/10 border-primary/20' : server.status === 'DOWN' ? 'bg-error/10 border-error/20' : 'bg-slate-500/10 border-slate-500/20';
+            const statusText = server.status === 'UP' ? 'text-primary' : server.status === 'DOWN' ? 'text-error' : 'text-slate-400';
+
+            return `
+                <div class="glass-card rounded-2xl p-6" data-server-id="${server._id}">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="space-y-1">
+                            <h3 class="text-xl font-bold tracking-tight font-headline">${server.name}</h3>
+                            <p class="text-on-surface-variant text-sm font-mono opacity-60">${server.url}</p>
+                        </div>
+                        <div class="flex items-center gap-2 ${statusBg} px-3 py-1.5 rounded-full">
+                            <span class="w-2 h-2 rounded-full" style="background-color: ${statusColor}; ${server.status === 'UP' ? 'animation: pulse 2s infinite;' : ''}"></span>
+                            <span class="text-[10px] font-bold ${statusText} uppercase tracking-widest">${statusLabel}</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-white/5 rounded-xl p-4 border border-white/5">
+                            <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest mb-1 opacity-50">Interval</p>
+                            <p class="text-primary text-xl font-semibold">${server.monitoringInterval}s</p>
+                        </div>
+                        <div class="bg-white/5 rounded-xl p-4 border border-white/5">
+                            <p class="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest mb-1 opacity-50">Last Checked</p>
+                            <p class="text-on-surface text-xl font-semibold">${formatTimeAgo(server.lastChecked)}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex gap-2">
+                            <button onclick="editServer('${server._id}')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-on-surface-variant hover:text-primary transition-all border border-white/5">
+                                <span class="material-symbols-outlined text-xl">edit</span>
+                            </button>
+                            <button onclick="deleteServer('${server._id}')" class="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-on-surface-variant hover:text-error transition-all border border-white/5">
+                                <span class="material-symbols-outlined text-xl">delete</span>
+                            </button>
+                        </div>
+                        <button onclick="refreshServer('${server._id}')" class="bg-primary text-slate-900 px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all">
+                            <span class="material-symbols-outlined text-lg">refresh</span> REFRESH
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'Never';
+            const seconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
+            if (seconds < 60) return `${seconds}s ago`;
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            return `${hours}h ago`;
+        }
+
+        let currentEditingId = null;
+
+        function editServer(serverId) {
+            currentEditingId = serverId;
+            fetch(`/api/servers/${serverId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const server = data.data;
+                    document.getElementById('editName').value = server.name;
+                    document.getElementById('editUrl').value = server.url;
+                    document.getElementById('editInterval').value = server.monitoringInterval;
+                    document.getElementById('editRetry').value = server.retryAttempts;
+                    
+                    const modal = document.getElementById('editModal');
+                    modal.style.pointerEvents = 'auto';
+                    modal.classList.remove('opacity-0');
+                });
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('editModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.style.pointerEvents = 'none';
+            }, 300);
+        }
+
+        async function handleEditSubmit(event) {
+            event.preventDefault();
+            
+            const updates = {
+                name: document.getElementById('editName').value,
+                url: document.getElementById('editUrl').value,
+                monitoringInterval: parseInt(document.getElementById('editInterval').value),
+                retryAttempts: parseInt(document.getElementById('editRetry').value),
+            };
+
+            try {
+                const response = await fetch(`/api/servers/${currentEditingId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates),
+                });
+
+                if (response.ok) {
+                    closeEditModal();
+                    loadServers();
+                } else {
+                    alert('Failed to update server');
+                }
+            } catch (error) {
+                console.error('Error updating server:', error);
+                alert('Error updating server');
+            }
+        }
+
+        async function deleteServer(serverId) {
+            if (!confirm('Are you sure you want to delete this server?')) return;
+
+            try {
+                const response = await fetch(`/api/servers/${serverId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadServers();
+                } else {
+                    alert('Failed to delete server');
+                }
+            } catch (error) {
+                console.error('Error deleting server:', error);
+                alert('Error deleting server');
+            }
+        }
+
+        async function refreshServer(serverId) {
+            try {
+                const response = await fetch(`/api/servers/${serverId}/check`, { method: 'POST' });
+                if (response.ok) {
+                    loadServers();
+                } else {
+                    alert('Failed to refresh server');
+                }
+            } catch (error) {
+                console.error('Error refreshing server:', error);
+            }
+        }
+
+        // Auto-refresh every 10 seconds
+        setInterval(loadServers, 10000);
+    </script>
+    </main>
+
+    <%- include('partials/nav') %>
+</body>
+</html>

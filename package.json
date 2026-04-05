@@ -1,0 +1,22 @@
+{
+  "name": "sentinel-pulse",
+  "description": "A real-time infrastructure monitoring system with server health checks and performance analytics",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "build": "echo 'No build step needed'"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "mongoose": "^8.0.3",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

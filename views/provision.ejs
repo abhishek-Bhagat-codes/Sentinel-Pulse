@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <title>Sentinel Pulse | Provision Node</title>
+    <%- include('partials/head') %>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen mesh-bg pb-32">
+    <header class="sticky top-0 z-50 nav-blur border-b border-white/5 flex justify-between items-center w-full px-8 py-5">
+        <div class="flex items-center gap-4">
+            <span class="material-symbols-outlined text-primary text-3xl font-light">hub</span>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary font-headline tracking-tight">Sentinel Pulse</h1>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto px-8 pt-10">
+        <nav class="w-full mb-8 flex items-center gap-2 text-on-surface-variant/70">
+            <a class="text-[10px] uppercase tracking-widest hover:text-primary" href="/nodes">Servers</a>
+            <span class="material-symbols-outlined text-xs opacity-50">chevron_right</span>
+            <span class="text-[10px] uppercase tracking-widest text-primary font-semibold">Provision New Node</span>
+        </nav>
+
+        <div class="w-full glass-card rounded-2xl p-8 lg:p-12 relative overflow-hidden shadow-2xl">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+            <header class="mb-12">
+                <h2 class="text-4xl font-bold text-on-surface tracking-tighter mb-3 font-headline">Configure Sentinel</h2>
+                <p class="text-on-surface-variant text-sm leading-relaxed max-w-md">Define the parameters for real-time telemetry and pulse monitoring on your new infrastructure node.</p>
+            </header>
+            <form class="space-y-8" id="serverForm" onsubmit="handleAddServer(event)">
+                <div class="space-y-6">
+                    <div class="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Server Identity</label>
+                        <input type="text" id="formName" class="w-full bg-transparent border-none focus:ring-0 p-0 text-on-surface font-headline text-lg placeholder-on-surface-variant/40 focus:outline-none" placeholder="e.g. Production API Gateway" required/>
+                    </div>
+                    <div class="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Network Endpoint</label>
+                        <input type="url" id="formUrl" class="w-full bg-transparent border-none focus:ring-0 p-0 text-on-surface placeholder-on-surface-variant/40 focus:outline-none" placeholder="e.g. https://api.example.com" required/>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                            <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Monitoring Interval</label>
+                            <input type="number" id="formInterval" min="5" max="3600" value="30" class="w-full bg-transparent border-none focus:ring-0 p-0 text-on-surface placeholder-on-surface-variant/40 focus:outline-none" required/>
+                            <span class="text-[9px] text-on-surface-variant/50 block mt-1">seconds</span>
+                        </div>
+                        <div class="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                            <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Retry Attempts</label>
+                            <input type="number" id="formRetry" min="0" max="5" value="2" class="w-full bg-transparent border-none focus:ring-0 p-0 text-on-surface placeholder-on-surface-variant/40 focus:outline-none" required/>
+                            <span class="text-[9px] text-on-surface-variant/50 block mt-1">before marking DOWN</span>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Notes (Optional)</label>
+                        <input type="text" id="formNotes" class="w-full bg-transparent border-none focus:ring-0 p-0 text-on-surface placeholder-on-surface-variant/40 focus:outline-none" placeholder="e.g. Production database server"/>
+                    </div>
+                </div>
+                <div class="pt-10 flex flex-col md:flex-row-reverse items-center gap-4">
+                    <button class="w-full md:w-auto px-12 py-4 bg-primary text-slate-900 font-bold rounded-xl shadow-lg hover:scale-[1.02] transition-all" type="submit">
+                        Save Server Configuration
+                    </button>
+                    <a href="/nodes" class="w-full md:w-auto px-10 py-4 text-on-surface-variant font-medium hover:text-on-surface transition-all text-center">
+                        Cancel
+                    </a>
+                </div>
+                <div id="successMessage" class="hidden p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm">
+                    ✓ Server added successfully! Redirecting to nodes...
+                </div>
+                <div id="errorMessage" class="hidden p-4 rounded-xl bg-error/10 border border-error/20 text-error text-sm"></div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        async function handleAddServer(event) {
+            event.preventDefault();
+
+            const serverData = {
+                name: document.getElementById('formName').value,
+                url: document.getElementById('formUrl').value,
+                monitoringInterval: parseInt(document.getElementById('formInterval').value),
+                retryAttempts: parseInt(document.getElementById('formRetry').value),
+                notes: document.getElementById('formNotes').value,
+            };
+
+            try {
+                const response = await fetch('/api/servers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(serverData),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('successMessage').classList.remove('hidden');
+                    setTimeout(() => {
+                        window.location.href = '/nodes';
+                    }, 1500);
+                } else {
+                    showError(data.message || 'Failed to create server');
+                }
+            } catch (error) {
+                console.error('Error creating server:', error);
+                showError(error.message || 'An error occurred while creating the server');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = '✗ ' + message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
+
+    <%- include('partials/nav') %>
+</body>
+</html>

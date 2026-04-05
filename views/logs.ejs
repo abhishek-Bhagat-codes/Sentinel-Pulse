@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <title>Sentinel Pulse | System Logs</title>
+    <%- include('partials/head') %>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen mesh-bg pb-32">
+    <header class="sticky top-0 z-50 nav-blur border-b border-white/5 flex justify-between items-center w-full px-8 py-5">
+        <div class="flex items-center gap-4">
+            <div class="relative">
+                <span class="material-symbols-outlined text-primary text-3xl font-light">hub</span>
+            </div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary font-headline tracking-tight">Sentinel Pulse</h1>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-8 pt-10">
+        <section class="mb-10">
+            <h2 class="text-4xl font-headline font-bold text-on-surface tracking-tight mb-2">System Logs</h2>
+            <p class="text-on-surface-variant text-sm">Real-time event stream from global infrastructure</p>
+        </section>
+
+        <div class="glass-card rounded-2xl overflow-hidden">
+            <div class="bg-white/5 px-6 py-4 border-b border-white/5 flex justify-between items-center gap-4 flex-wrap">
+                <div class="flex gap-4">
+                    <button onclick="filterLogs('all')" class="log-filter text-[10px] font-bold text-primary uppercase tracking-widest pb-1 border-b-2 border-primary" data-filter="all">All Events</button>
+                    <button onclick="filterLogs('UP')" class="log-filter text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white cursor-pointer pb-1 border-b-2 border-transparent" data-filter="UP">Success</button>
+                    <button onclick="filterLogs('DOWN')" class="log-filter text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white cursor-pointer pb-1 border-b-2 border-transparent" data-filter="DOWN">Down</button>
+                    <button onclick="filterLogs('TIMEOUT')" class="log-filter text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-white cursor-pointer pb-1 border-b-2 border-transparent" data-filter="TIMEOUT">Timeout</button>
+                </div>
+                <select id="serverFilter" onchange="filterByServer()" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-on-surface focus:outline-none">
+                    <option value="">All Servers</option>
+                    <% if (servers && servers.length > 0) { %>
+                        <% servers.forEach(server => { %>
+                            <option value="<%= server._id %>"><%= server.name %></option>
+                        <% }); %>
+                    <% } %>
+                </select>
+            </div>
+            <div class="p-6 space-y-4 font-mono text-xs max-h-96 overflow-y-auto" id="logsList">
+                <!-- Logs will be loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let allLogs = [];
+        let currentFilter = 'all';
+        let currentServerFilter = '';
+
+        // Load logs on page load
+        loadLogs();
+
+        async function loadLogs() {
+            try {
+                // Fetch all logs from all servers
+                const response = await fetch('/api/servers');
+                const data = await response.json();
+                const servers = data.data || [];
+
+                allLogs = [];
+
+                // Fetch logs for each server
+                for (const server of servers) {
+                    const logsResponse = await fetch(`/api/servers/${server._id}/logs?limit=100`);
+                    const logsData = await logsResponse.json();
+                    if (logsData.data) {
+                        allLogs = allLogs.concat(
+                            logsData.data.map(log => ({
+                                ...log,
+                                serverName: server.name,
+                                serverId: server._id,
+                            }))
+                        );
+                    }
+                }
+
+                // Sort by timestamp descending
+                allLogs = allLogs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                displayLogs();
+            } catch (error) {
+                console.error('Error loading logs:', error);
+            }
+        }
+
+        function displayLogs() {
+            let filteredLogs = allLogs;
+
+            // Apply status filter
+            if (currentFilter !== 'all') {
+                filteredLogs = filteredLogs.filter(log => log.status === currentFilter);
+            }
+
+            // Apply server filter
+            if (currentServerFilter) {
+                filteredLogs = filteredLogs.filter(log => log.serverId === currentServerFilter);
+            }
+
+            const logsList = document.getElementById('logsList');
+            
+            if (filteredLogs.length === 0) {
+                logsList.innerHTML = '<p class="text-on-surface-variant p-4">No logs found</p>';
+                return;
+            }
+
+            logsList.innerHTML = filteredLogs.map(log => createLogEntry(log)).join('');
+        }
+
+        function createLogEntry(log) {
+            const timestamp = new Date(log.createdAt).toLocaleTimeString();
+            const statusLabels = {
+                'UP': 'INFO',
+                'DOWN': 'ERROR',
+                'TIMEOUT': 'TIMEOUT',
+                'ERROR': 'ERROR',
+            };
+            const statusColors = {
+                'UP': 'text-primary',
+                'DOWN': 'text-error',
+                'TIMEOUT': 'text-secondary',
+                'ERROR': 'text-error',
+            };
+
+            const label = statusLabels[log.status] || log.status;
+            const color = statusColors[log.status] || 'text-slate-500';
+
+            const message = log.status === 'UP' 
+                ? `${log.serverName}: Health check passed (${log.responseTime}ms, HTTP ${log.responseCode})`
+                : `${log.serverName}: ${log.message} (${log.responseTime}ms)`;
+
+            return `
+                <div class="flex gap-4 group hover:bg-white/5 p-2 rounded transition-all">
+                    <span class="text-slate-600 shrink-0">${timestamp}</span>
+                    <span class="${color} shrink-0">[${label}]</span>
+                    <span class="text-on-surface-variant flex-1">${message}</span>
+                </div>
+            `;
+        }
+
+        function filterLogs(filter) {
+            currentFilter = filter;
+            
+            // Update button styles
+            document.querySelectorAll('.log-filter').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.remove('text-slate-500', 'border-transparent');
+                    btn.classList.add('text-primary', 'border-primary');
+                } else {
+                    btn.classList.add('text-slate-500', 'border-transparent');
+                    btn.classList.remove('text-primary', 'border-primary');
+                }
+            });
+
+            displayLogs();
+        }
+
+        function filterByServer() {
+            currentServerFilter = document.getElementById('serverFilter').value;
+            displayLogs();
+        }
+
+        // Auto-refresh logs every 5 seconds
+        setInterval(loadLogs, 5000);
+    </script>
+
+    <%- include('partials/nav') %>
+</body>
+</html>

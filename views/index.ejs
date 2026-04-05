@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <title>Sentinel Pulse | Dashboard</title>
+    <%- include('partials/head') %>
+</head>
+<body class="bg-background text-on-surface font-body min-h-screen mesh-bg pb-32">
+    <header class="sticky top-0 z-50 nav-blur border-b border-white/5 flex justify-between items-center w-full px-8 py-5">
+        <div class="flex items-center gap-4">
+            <div class="relative">
+                <span class="material-symbols-outlined text-primary text-3xl font-light">hub</span>
+                <div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full pulse-glow shadow-[0_0_8px_rgba(78,222,163,0.6)]"></div>
+            </div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary font-headline tracking-tight">Sentinel Pulse</h1>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-8 pt-10">
+        <section class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-14">
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-8 h-[1px] bg-primary/40"></span>
+                    <p class="text-primary font-label text-[11px] uppercase tracking-[0.2em] font-semibold">Real-Time Operations</p>
+                </div>
+                <h2 class="text-5xl font-headline font-bold text-on-surface tracking-tight leading-tight">System Status: <span class="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Optimal</span></h2>
+            </div>
+            <a href="/provision" class="group flex items-center gap-3 px-8 py-4 bg-white/5 border border-white/10 hover:border-primary/50 text-on-surface font-medium rounded-2xl transition-all active:scale-[0.98] shadow-2xl overflow-hidden relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <span class="material-symbols-outlined text-primary">add_circle</span>
+                <span class="relative z-10">Provision Node</span>
+            </a>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
+            <div class="glass-card rounded-2xl p-8 group relative transition-all duration-500 hover:translate-y-[-4px]">
+                <p class="text-on-surface-variant font-label text-[10px] uppercase tracking-widest mb-6 font-bold">Total Network Fleet</p>
+                <div class="flex items-baseline gap-3">
+                    <span class="text-6xl font-headline font-bold text-on-surface tracking-tighter"><%= summary?.totalServers || 0 %></span>
+                    <span class="text-slate-500 font-medium text-lg">active nodes</span>
+                </div>
+                <div class="mt-8 flex items-center gap-2 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-lg w-fit">
+                    <span class="material-symbols-outlined text-primary text-sm font-bold">trending_up</span>
+                    <span class="text-primary text-[11px] font-bold"><%= summary?.upServers || 0 %> Online</span>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-8 group relative overflow-hidden transition-all duration-500 hover:translate-y-[-4px]">
+                <p class="text-on-surface-variant font-label text-[10px] uppercase tracking-widest mb-6 font-bold">Health Synchronization</p>
+                <div class="flex items-baseline gap-3">
+                    <span class="text-6xl font-headline font-bold bg-clip-text text-transparent bg-gradient-to-br from-primary to-secondary tracking-tighter"><%= summary?.upServers || 0 %></span>
+                    <span class="text-primary/60 font-medium text-lg">Stable</span>
+                </div>
+                <div class="mt-8">
+                    <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <% const uptimePercent = summary?.overallUptime || 0; %>
+                        <div class="h-full bg-gradient-to-r from-primary to-secondary rounded-full" style="width: <%= uptimePercent %>%"></div>
+                    </div>
+                    <p class="mt-3 text-[11px] text-slate-500 font-medium flex justify-between">
+                        <span>Uptime Index</span>
+                        <span class="text-primary"><%= (summary?.overallUptime || 0).toFixed(1) %>% Availability</span>
+                    </p>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-8 group relative transition-all duration-500 hover:translate-y-[-4px]">
+                <p class="text-on-surface-variant font-label text-[10px] uppercase tracking-widest mb-6 font-bold">Anomalies Detected</p>
+                <div class="flex items-baseline gap-3">
+                    <span class="text-6xl font-headline font-bold text-error tracking-tighter"><%= String(summary?.downServers || 0).padStart(2, '0') %></span>
+                    <span class="text-error/60 font-medium text-lg">Down</span>
+                </div>
+                <div class="mt-8 flex gap-2 flex-wrap">
+                    <% if (servers && servers.length > 0) { %>
+                        <% servers.filter(s => s.status === 'DOWN').slice(0, 3).forEach(server => { %>
+                            <span class="px-3 py-1.5 bg-error/10 border border-error/20 text-error text-[10px] font-bold rounded-lg tracking-wider truncate max-w-[150px]"><%= server.name %></span>
+                        <% }); %>
+                    <% } %>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-8 glass-card rounded-3xl p-10">
+                <h3 class="text-2xl font-headline font-bold text-on-surface mb-1">Network Performance</h3>
+                <p class="text-on-surface-variant text-sm mb-8">Avg Response Time: <span class="text-primary font-semibold"><%= summary?.avgResponseTime || 0 %>ms</span></p>
+                <div class="h-64 w-full flex items-end justify-between gap-2 mt-6">
+                    <% 
+                        // Generate random-looking but consistent bar heights for visualization
+                        const bars = Array(10).fill(0).map((_, i) => {
+                            const seed = (i + Date.now().toString().slice(-2)) % 100;
+                            return Math.max(40 + (seed * 0.6), 40);
+                        });
+                    %>
+                    <% bars.forEach(height => { %>
+                        <div class="h-full w-full bg-white/5 rounded-xl hover:bg-primary/20 transition-all" style="height: <%= height %>%"></div>
+                    <% }); %>
+                </div>
+            </div>
+            <div class="lg:col-span-4 glass-card rounded-3xl p-10">
+                <h3 class="text-xl font-headline font-bold text-on-surface mb-10">Intelligence Feed</h3>
+                <div class="space-y-6 max-h-80 overflow-y-auto">
+                    <% if (recentLogs && recentLogs.length > 0) { %>
+                        <% recentLogs.slice(0, 5).forEach(log => { %>
+                            <div class="relative pl-10">
+                                <% const color = log.status === 'UP' ? '#4edea3' : log.status === 'TIMEOUT' ? '#fbbf24' : '#fb7185'; %>
+                                <div class="absolute left-0 top-1.5 w-3 h-3 rounded-full" style="background-color: <%= color %>"></div>
+                                <p class="text-[10px] text-slate-500 font-bold tracking-widest mb-1"><%= new Date(log.timestamp).toLocaleTimeString() %></p>
+                                <p class="text-sm font-semibold text-on-surface"><%= log.serverName %> - <span class="text-[10px] text-on-surface-variant"><%= log.status %> (<%= log.responseTime %>ms)</span></p>
+                            </div>
+                        <% }); %>
+                    <% } else { %>
+                        <p class="text-on-surface-variant text-sm">No recent activity</p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <%- include('partials/nav') %>
+</body>
+</html>
